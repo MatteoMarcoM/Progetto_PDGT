@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 
+//JSON?
 //app.use(express.json);
 
 //mappa javascript (id, {dizionario chiave valore})
@@ -18,6 +19,7 @@ app.get("/", (req, res) => {
 });
 
 //registra gli utenti
+//PUT?
 app.post("/register/:name", (req, res) => {
   const n = req.params.name;
   
@@ -41,6 +43,34 @@ function foundUser(name){
   }
   return found;
 }
+
+//NNB
+//deregistra utente
+app.delete('utenti/remove/:name', (req, res) =>{
+  
+  for(let id=1; id< newId; id++){
+    let utente = data.get(id);
+    
+    if(utente.name == name){
+      //data.delete(id);
+      //newId--;
+      data.get(id).name = '';
+      //altrimenti il valore id viene eliminato e
+      //la mappa rimane male indicizzata
+    }
+  }
+});
+
+//endpoint per la lista degli utenti registrati
+app.get('/utenti', (req, res) =>{
+  
+  let lista = '';
+  for(let i=1; i< newId; i++){
+    lista += data.get(i).name;
+    }
+  
+  res.type('text/html').send("<html>Lista utenti:\n"+lista+'</html>');
+});
 
 //accedi all'endpoint degli utenti
 app.get("/utenti/:name", (req, res) =>{
@@ -78,7 +108,7 @@ app.put("/utenti/:name/libri/:libro", (req, res) =>{
   console.log("Aggiunto libro: "+libro+" a utente: "+name);
 });
 
-//CORREGGERE
+
 //endpoint per rimuovere un libro
 app.delete("/utenti/:name/libri/remove/:lib", (req, res) =>{
   const name = req.params.name;
@@ -95,10 +125,18 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) =>{
     
     if( utente.name == name){
       //rimuovo il libro dell'utente
-      for(let i=0; i<utente.libri.lenght; i++){
-        if(utente.libri[i] == libro)
-          delete utente.libri[i];
-      }
+      
+      //CHIEDERE PROF PERCHé NON FA COL FOR
+      
+      /*for(let j=0; j<utente.libri.lenght; j++){
+        if(utente.libri[j] == libro)
+          delete utente.libri[j];
+      }*/
+      utente.libri.forEach(function(item, index, array) {
+        console.log(item, index);
+        if(utente.libri[index] == libro)
+          delete utente.libri[index];
+      });
     }
   }
   
@@ -127,7 +165,7 @@ app.get('/utenti/:name/libri', (req, res) =>{
     }
   }
   
-  res.type('text/html').send("<html>Lista libri: "+lista+'</html>');
+  res.type('text/html').send("<html>Lista libri:\n"+lista+'</html>');
 });
 
 //app listen
