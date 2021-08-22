@@ -3,7 +3,14 @@ const app = express();
 
 //app.use(express.json);
 
-let utenti = [];
+//mappa javascript (id, {dizionario chiave valore})
+let data = new Map();
+data.set(1, { name: 'Mario', libri: ['libro1', 'libro2'] } );
+let newId = 2;  // id incrementale nuovo utente
+
+//reset mappa
+data = new Map();
+newId = 1;
 
 app.get("/", (req, res) => {
   console.log("Access to root");
@@ -14,52 +21,113 @@ app.get("/", (req, res) => {
 app.post("/register/:name", (req, res) => {
   const n = req.params.name;
   
-  utenti.push(n);
+  //aggiungo nuovo utente senza libri
+  data.set(newId, {name: n, libri: []});
+  newId++;
   
   res.sendStatus(200);
   console.log("User successfully registered: "+n);
 });
 
-//accedi all'endpoint degli utenti
-app.get("/utenti/:name", (req, res) =>{
-  const n = req.params.name;
+function foundUser(name){
   let found = false;
   
-  for(let i=0; i<utenti.length; i++){
-    if(utenti[i]==n){
+  //ciclo sugli id esistenti e ottengo il nome dai
+  // vari dizionari, da confrontare con name
+  for(let i=1; i< newId; i++){
+    if(data.get(i).name == name){
       found = true;
     }
   }
+  return found;
+}
+
+//accedi all'endpoint degli utenti
+app.get("/utenti/:name", (req, res) =>{
+  const n = req.params.name;
   
-  if(found == false){
+  if(foundUser(n) == false){
     res.sendStatus(404); //not found
     return;
   }
   
   //found
-  const headerAccept = req.get('Accept');
-  console.log('Accept: ' + headerAccept);
+  res.type('text/plain').send("Biblioteca personale di "+n);
+});
+
+//endpoint per aggiungiere un libro
+app.put("/utenti/:name/libri/:libro", (req, res) =>{
+  const name = req.params.name;
+  const libro = req.params.libro;
   
-  res.format({
-    'text/plain': () => {
-      res.type('text/plain').send("libro di "+n+" in db");
-    },
+  if(foundUser(name) == false){
+    res.sendStatus(404); //not found
+    return;
+  }
+  
+  //aggiungo il libro
+  for(let i=1; i< newId; i++){
+    let utente = data.get(i);
     
-    'text/html': () => {
-      res.type('text/html').send("<html><body><h1> libro di "+n+"</h1></body></html>");
-    },
-    
-    'application/json': () => {
-      res.json({
-        name: n,
-        book: "titolo libro"
-      });
-    },
-    
-    default: () => {
-      res.sendStatus(406);
+    if( utente.name == name){
+      utente.libri.push(libro);
     }
-  });
+  }
+  
+  res.sendStatus(200);
+  console.log("Aggiunto libro: "+libro+" a utente: "+name);
+});
+
+//CORREGGERE
+//endpoint per rimuovere un libro
+app.delete("/utenti/:name/libri/remove/:lib", (req, res) =>{
+  const name = req.params.name;
+  const libro = req.params.lib;
+  
+  if(foundUser(name) == false){
+    res.sendStatus(404); //not found
+    return;
+  }
+  
+  //trovo l'utente
+  for(let i=1; i< newId; i++){
+    let utente = data.get(i);
+    
+    if( utente.name == name){
+      //rimuovo il libro dell'utente
+      for(let i=0; i<utente.libri.lenght; i++){
+        if(utente.libri[i] == libro)
+          delete utente.libri[i];
+      }
+    }
+  }
+  
+  res.sendStatus(200);
+  console.log("Rimosso il libro: "+libro+" a utente: "+name);
+});
+
+//endpoint per ottenere la lista dei libri
+app.get('/utenti/:name/libri', (req, res) =>{
+  let name = req.params.name;
+  
+  if(!foundUser(name)){
+    console.log("User "+name+" not found");
+    res.sendStatus(404); //not found
+    return;
+  }
+  
+  //restituisco la lista dei libri
+  let lista = '';
+  for(let i=1; i< newId; i++){
+    let utente = data.get(i);
+    
+    if( utente.name == name){
+      //ottengo tutti i libri su diverse righe
+      lista = utente.libri.join('\n');
+    }
+  }
+  
+  res.type('text/html').send("<html>Lista libri: "+lista+'</html>');
 });
 
 //app listen
