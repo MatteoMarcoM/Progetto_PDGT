@@ -1,8 +1,9 @@
 const express = require("express");
 const app = express();
 
-//JSON?
-//app.use(express.json);
+//METTI console log e semantica endpoint restful
+//MANCANO richieste patch e post => update
+//autenticazione?
 
 //mappa javascript (id, {dizionario chiave valore})
 let data = new Map();
@@ -19,9 +20,22 @@ app.get("/", (req, res) => {
 });
 
 //registra gli utenti
-//PUT?
-app.post("/register/:name", (req, res) => {
+app.put("/register/:name", (req, res) => {
   const n = req.params.name;
+  
+  //verifico che non ci siano spazi
+  if(n.search(' ') != -1) {
+    res.sendStatus(403);  //forbidden
+    return;
+  }
+  
+  //verifico se il nome è già utilizzato
+  for(let i=1; i< newId; i++){
+    if(data.get(i).name == n){
+      res.sendStatus(403);  //forbidden
+      return;
+    }
+  }
   
   //aggiungo nuovo utente senza libri
   data.set(newId, {name: n, libri: []});
@@ -44,20 +58,31 @@ function foundUser(name){
   return found;
 }
 
-//NNB
+//CORREGGERE BUG
 //deregistra utente
 app.delete('utenti/remove/:name', (req, res) =>{
+  const n = req.params.name;
+  let found = false;
+  console.log('debug');
   
   for(let id=1; id< newId; id++){
-    let utente = data.get(id);
     
-    if(utente.name == name){
-      //data.delete(id);
+    if(data.get(id).name == n){
+      data.delete(id);
+      //delete data.get(id);
+      found = true;
       //newId--;
-      data.get(id).name = '';
+      //data.get(id).name = '';
+      //data.get(id).libri = {};
       //altrimenti il valore id viene eliminato e
       //la mappa rimane male indicizzata
     }
+  }
+  
+  if(found == true){
+    res.sendStatus(200);
+  }else{
+    res.sendStatus(404);
   }
 });
 
@@ -66,10 +91,31 @@ app.get('/utenti', (req, res) =>{
   
   let lista = '';
   for(let i=1; i< newId; i++){
-    lista += data.get(i).name;
-    }
+    lista += data.get(i).name + '\n';
+  }
   
-  res.type('text/html').send("<html>Lista utenti:\n"+lista+'</html>');
+  // Negoziazione della codifica
+  const headerAccept = req.get('Accept');
+  console.log('Accept: ' + headerAccept);
+  res.format({
+    'text/plain': () => {
+      res.type('text/plain').send('Lista utenti:\n'+lista);
+    },
+    
+    'text/html': () => {
+      res.type('text/html').send('<html><body>Lista utenti:\n'+lista+'</body></html>');
+    },
+    
+    'application/json': () => {
+      res.json({
+        name: lista.split('\n')
+      });
+    },
+    
+    default: () => {
+      res.sendStatus(406);
+    }
+  });
 });
 
 //accedi all'endpoint degli utenti
@@ -156,16 +202,40 @@ app.get('/utenti/:name/libri', (req, res) =>{
   
   //restituisco la lista dei libri
   let lista = '';
+  let utente = undefined;
   for(let i=1; i< newId; i++){
-    let utente = data.get(i);
+    utente = data.get(i);
     
     if( utente.name == name){
       //ottengo tutti i libri su diverse righe
       lista = utente.libri.join('\n');
+      break; //utente è l'utente cercato
     }
   }
-  
-  res.type('text/html').send("<html>Lista libri:\n"+lista+'</html>');
+   
+  // Negoziazione della codifica
+  const headerAccept = req.get('Accept');
+  console.log('Accept: ' + headerAccept);
+  res.format({
+    'text/plain': () => {
+      res.type('text/plain').send('Lista libri:\n'+lista);
+    },
+    
+    'text/html': () => {
+      res.type('text/html').send('<html><body>Lista libri:\n'+lista+'</body></html>');
+    },
+    
+    'application/json': () => {
+      res.json({
+        name: utente.name,
+        libri: utente.libri
+      });
+    },
+    
+    default: () => {
+      res.sendStatus(406);
+    }
+  });
 });
 
 //app listen
