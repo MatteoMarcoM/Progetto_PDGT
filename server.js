@@ -1,8 +1,6 @@
 const express = require("express");
 const app = express();
 
-//autenticazione?
-
 //mappa javascript (id, {dizionario chiave valore})
 let data = new Map();
 data.set(1, { name: "Mario", libri: ["libro1", "libro2"] });
@@ -43,6 +41,70 @@ app.put("/utenti/register/:name", (req, res) => {
   console.log("User successfully registered: " + n);
 });
 
+//autenticazione utenti
+const jwt = require('njwt');
+const secret = process.env.JWT_SECRET;
+
+// autenticazione con meccanismo jwt
+// dopo il login ottengo il cookie di sessione
+app.post('/utenti/login/jwt', (req, res) => {
+  if(!req.headers.authorization) {
+    res.sendStatus(401);
+    return;
+  }
+  
+  console.log('Authorization: ' + req.headers.authorization);
+    
+  if(!req.headers.authorization.startsWith('Basic ')) {
+    res.sendStatus(401);
+    return;
+  }
+  
+  console.log('Basic authentication');
+
+  // ignoro i primi 6 caratteri dell'autorizzazione (Basic:)
+  const auth = req.headers.authorization.substr(6);
+  const decoded = Buffer.from(auth, 'base64').toString();
+  console.log('Decoded: ' + decoded);
+
+  const [username, password] = decoded.split(':'); //username:password
+  console.log('Username: ' + username + ' password: ' + password)
+  
+  if(!data.has(username)) {
+    res.sendStatus(401);
+    return false;
+  }
+  const user = data.get(username);
+  console.log('Login come ' + username + ', utente ' + user.id);
+  
+  //package per hashing
+  const sha256 = require('js-sha256');
+  const compound = user.salt + password;
+  let h = sha256.create();
+  h.update(compound);
+  const hashed = h.hex();
+  
+  console.log('Hash: ' + hashed + ', expected: ' + user.hash);
+
+  if(hashed == user.hash) {
+    const claims = {
+      sub: username,
+      iss: 'PDGT-lab'
+    };
+    
+    const token = jwt.create(claims, secret);
+    token.setExpiration(new Date().getTime() + 10000);
+    console.log('New token: ' + token.compact());
+    
+    res.cookie('sessionToken', token.compact());
+    res.sendStatus(200);
+  }
+  else {
+    res.sendStatus(401);
+  }
+});
+
+
 function foundUser(name) {
   let found = false;
 
@@ -55,6 +117,41 @@ function foundUser(name) {
   }
   return found;
 }
+
+//verifica cookie sessione
+app.get('/utenti/:name/secret/jwt', (req, res) => {
+  
+  if (foundUser(name) == false) {
+    res.sendStatus(404); //not found
+    return;
+  }
+  
+  if(!req.cookies.sessionToken) {
+    res.sendStatus(401);
+    return;
+  }
+  
+  const token = req.cookies.sessionToken;
+  console.log('Token: ' + token);
+  
+  jwt.verify(token, secret, (err, verifiedToken) => {
+    if(err) {
+      console.log(err);
+      res.sendStatus(401);
+    }
+    else {
+      console.log(verifiedToken);
+      if(verifiedToken.body.sub == 'mario') {
+        res.send('Documento segreto di lorenz');
+      }
+      else {
+        res.sendStatus(403);
+      }
+    }
+  });
+});
+//fine autorizzazione
+
 
 //CORREGGERE BUG
 //deregistra utente
