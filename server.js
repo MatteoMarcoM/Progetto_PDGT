@@ -154,68 +154,85 @@ function foundUser(name) {
 // ritorna 0 se ha successo 
 // ritorna 1 per errore 401
 // ritorna 2 per errore 403
-function verifyToken(req){
+// ritorna 3 se fallisce la verifica
+function verifyToken(req, res){
+
+  let toReturn = 3;
   
   if (!req.cookies.sessionToken) {
-    return 1;
+    toReturn = 1;
+    //res.sendStatus(401);
+    //return;
   }
 
   // richiede cookie-parser (express)
   const token = req.cookies.sessionToken;
   console.log("Token: " + token);
-
-  jwt.verify(token, secret, (err, verifiedToken) => {
+  
+  let func = function(err, verifiedToken) {
     if (err) {
       console.log(err);
       //res.sendStatus(401);
-      return 1;
+      toReturn = 1;
     } else {
       console.log(verifiedToken);
       if (verifiedToken.body.subj == req.params.name) {
-        //res.send("Documento segreto di " + name);
-        return 0;
+        //res.send("Documento segreto di " + req.params.name);
+        //res.sendSatus(200);
+        toReturn = 0;
       } else {
         //res.sendStatus(403);
-        return 2;
+        toReturn =  2;
       }
     }
-  });
+  };
+  
+  jwt.verify(token, secret, func);
+  console.log('debug: '+toReturn);
+  return toReturn;
 }
 //verifica cookie sessione
 app.get("/utenti/:name/secret/jwt", (req, res) => {
   const name = req.params.name;
 
-  if (foundUser(name) == false) {
+  if (foundUser(name) === false) {
     res.sendStatus(404); //not found
     return;
   }
   
-  if(verifyToken(req) == 1){
+  if(verifyToken(req, res) === 1){
     res.sendSatus(401);
+    return;
   }
   
-  if(verifyToken(req) == 2){
+  if(verifyToken(req, res) === 2){
     res.sendSatus(403);
+    return;
   }
   
-  if(verifyToken(req) == 0){
+  if(verifyToken(req, res) === 0){
     res.sendSatus(200);
     res.send("Documento segreto di " + name);
+    return;
   }
+  // errore generico server
+  // la verifica è fallita
+  res.sendStatus(500);
   
+  //verifyToken(req, res);
 });  
 //fine autorizzazione
 
 //CORREGGERE BUG
 //deregistra utente
-app.delete("utenti/remove/:name", (req, res) => {
+app.delete("/utenti/remove/:name", (req, res) => {
   const n = req.params.name;
   let found = false;
 
   //for (let id = 1; id < newId; id++) {
   if (data.has(n)) {
-    data.delete(n);
-    //delete data.get(id);
+    data.delete(n.toString());
+    //delete data.get(n);
     found = true;
     //break;
     //newId--;
@@ -290,7 +307,7 @@ app.get("/utenti/:name", (req, res) => {
   res.type("text/plain").send("Biblioteca personale di " + n);
 });
 
-//endpoint per aggiungiere un libro
+//endpoint per aggiungere un libro
 app.put("/utenti/:name/libri/:libro", (req, res) => {
   const name = req.params.name;
   const libro = req.params.libro;
