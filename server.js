@@ -13,61 +13,58 @@ data.set("Mario", {
   hash: "sdkjl4n09nc0v35obv7be9t8t",
   salt: "123456"
 });
-//let newId = 2; // id incrementale nuovo utente
 
 //reset mappa
 data = new Map();
-//newId = 1;
 
 app.get("/", (req, res) => {
   console.log("Access to root");
   res.sendStatus(200); //OK
 });
 
-//package per hashing
+// package per hashing
 const sha256 = require("js-sha256");
 
-//registra gli utenti
-//NB PASS IN CHIARO
+// registra gli utenti
+// NB ':password' è in chiaro
 app.put("/utenti/register/:name/:password", (req, res) => {
-  const n = req.params.name;
+  const name = req.params.name;
   const pass = req.params.password;
 
-  //verifico che non ci siano spazi
+  // verifico che non ci siano spazi
   // search restituisce -1 se non trova occorrenze
-  if (n.search(" ") != -1 || pass.search(" ") != -1) {
+  if (name.search(" ") != -1 || pass.search(" ") != -1) {
     res.sendStatus(403); //forbidden
     return;
   }
 
   //verifico se il nome è già utilizzato
-  //for (let i = 1; i < newId; i++) {
-  if (data.has(n)) {
-    res.sendStatus(403); //forbidden
+  if (data.has(name)) {
+    res.sendStatus(403); //Forbidden
     return;
-    //}
   }
 
   //aggiungo nuovo utente senza libri
   const salt = generateSalt(6);
-  console.log(salt);
+  console.log('Salt di '+name+' : '+salt);
   
   let hashPass = sha256.create();
   hashPass.update(salt+pass);
   const hash = hashPass.hex();
-  console.log(hash);
+  console.log('Hash salt+pass di '+name+' : '+hash);
   
-  data.set(n, { libri: [], hash: hash, salt: salt});
-  //newId++;
+  data.set(name, { libri: [], hash: hash, salt: salt}); 
 
-  res.sendStatus(200);
-  console.log("User successfully registered: " + n);
+  res.sendStatus(200);  //OK
+  console.log("User successfully registered: " + name);
 });
 
 function generateSalt(n){
   let salt = '';
-  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for ( var i = 0; i < characters.length; i++ ) {
+  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + 
+                   'abcdefghijklmnopqrstuvwxyz' +
+                   '0123456789';
+  for ( var i = 0; i < n; i++ ) {
       salt += characters.charAt(Math.floor(Math.random() * characters.length));
    }
   return salt;
@@ -79,11 +76,12 @@ const jwt = require("njwt");
 // nel file di environment
 const secret = process.env.JWT_SECRET;
 
-// autenticazione con meccanismo jwt
-// dopo il login ottengo il cookie di sessione
+// autenticazione con meccanismo jwt tramite Basic authentication
+// dopo la registrazione (sign-in) ottengo il cookie di sessione (log-in)
 app.post("/utenti/login/jwt", (req, res) => {
   if (!req.headers.authorization) {
     //Unauthorized
+    res.type('text/plain').send("Necessaria l'autenticazione con meccanismo Basic");
     res.sendStatus(401);
     return;
   }
@@ -107,7 +105,7 @@ app.post("/utenti/login/jwt", (req, res) => {
 
   if (!data.has(username)) {
     res.sendStatus(401);
-    return false;
+    return;
   }
   const user = data.get(username);
   console.log("Login come " + username + ", hash effettivo " + user.hash);
@@ -127,7 +125,7 @@ app.post("/utenti/login/jwt", (req, res) => {
     };
 
     const token = jwt.create(claims, secret);
-    token.setExpiration(new Date().getTime() + 10000);
+    token.setExpiration(new Date().getTime() + 10000);  //10 sec
     console.log("New token: " + token.compact());
 
     res.cookie("sessionToken", token.compact());
@@ -136,19 +134,6 @@ app.post("/utenti/login/jwt", (req, res) => {
     res.sendStatus(401);
   }
 });
-
-function foundUser(name) {
-  let found = false;
-
-  //ciclo sugli id esistenti e ottengo il nome dai
-  // vari dizionari, da confrontare con name
-  //for (let i = 1; i < newId; i++) {
-  if (data.has(name)) {
-    found = true;
-  }
-  //}
-  return found;
-}
 
 //verifica token
 // ritorna 0 se ha successo 
@@ -160,9 +145,8 @@ function verifyToken(req, res){
   let toReturn = 3;
   
   if (!req.cookies.sessionToken) {
-    toReturn = 1;
     //res.sendStatus(401);
-    //return;
+    return 1;
   }
 
   // richiede cookie-parser (express)
@@ -171,11 +155,11 @@ function verifyToken(req, res){
   
   let func = function(err, verifiedToken) {
     if (err) {
-      console.log(err);
+      console.log('Errore: '+err);
       //res.sendStatus(401);
       toReturn = 1;
     } else {
-      console.log(verifiedToken);
+      console.log('Token: '+verifiedToken);
       if (verifiedToken.body.subj == req.params.name) {
         //res.send("Documento segreto di " + req.params.name);
         //res.sendSatus(200);
@@ -188,29 +172,30 @@ function verifyToken(req, res){
   };
   
   jwt.verify(token, secret, func);
-  console.log('debug: '+toReturn);
+  console.log('Debug: '+toReturn);
   return toReturn;
 }
+
 //verifica cookie sessione
 app.get("/utenti/:name/secret/jwt", (req, res) => {
   const name = req.params.name;
 
-  if (foundUser(name) === false) {
-    res.sendStatus(404); //not found
+  if (!data.has(name)) {
+    res.sendStatus(404); //Not Found
     return;
   }
   
-  if(verifyToken(req, res) === 1){
+  if(verifyToken(req, res) == 1){
     res.sendSatus(401);
     return;
   }
   
-  if(verifyToken(req, res) === 2){
+  if(verifyToken(req, res) == 2){
     res.sendSatus(403);
     return;
   }
   
-  if(verifyToken(req, res) === 0){
+  if(verifyToken(req, res) == 0){
     res.sendSatus(200);
     res.send("Documento segreto di " + name);
     return;
@@ -223,36 +208,22 @@ app.get("/utenti/:name/secret/jwt", (req, res) => {
 });  
 //fine autorizzazione
 
-//CORREGGERE BUG
 //deregistra utente
 app.delete("/utenti/remove/:name", (req, res) => {
-  const n = req.params.name;
-  let found = false;
+  const name = req.params.name;
 
-  //for (let id = 1; id < newId; id++) {
-  if (data.has(n)) {
-    data.delete(n.toString());
-    //delete data.get(n);
-    found = true;
-    //break;
-    //newId--;
-    //data.get(id).name = '';
-    //data.get(id).libri = {};
-    //altrimenti il valore id viene eliminato e
-    //la mappa rimane male indicizzata
-    //}
-  }
-
-  if (found == true) {
+  if (data.has(name)) {
+    data.delete(name);
     res.sendStatus(200);
-  } else {
-    res.sendStatus(404);
+  }else {
+    res.sendStatus(404);  //Not Found
   }
 });
 
+// Negoziazione della codifica
 function negoziaCodifica(stampa, req, res, subj) {
+  
   // subj (soggetto) è 'libri' o 'utenti'
-  // Negoziazione della codifica
   const headerAccept = req.get("Accept");
   console.log("Accept: " + headerAccept);
   res.format({
@@ -268,7 +239,8 @@ function negoziaCodifica(stampa, req, res, subj) {
 
     "application/json": () => {
       res.json({
-        subj: stampa.split("\n")
+        subj:  subj,
+        content: stampa.split("\n")
       });
     },
 
@@ -281,13 +253,8 @@ function negoziaCodifica(stampa, req, res, subj) {
 //endpoint per la lista degli utenti registrati
 app.get("/utenti", (req, res) => {
   let lista = "";
-  /*
-  for (let i = 1; i < newId; i++) {
-    lista += data.get(i).name + "\n";
-  }*/
 
   for (var [key, val] of data) {
-    //console.log(key + ": " + val);
     lista += key + "\n";
   }
 
@@ -296,42 +263,41 @@ app.get("/utenti", (req, res) => {
 
 //accedi all'endpoint degli utenti
 app.get("/utenti/:name", (req, res) => {
-  const n = req.params.name;
+  const name = req.params.name;
 
-  if (foundUser(n) == false) {
-    res.sendStatus(404); //not found
+  if (!data.has(name)) {
+    res.sendStatus(404); //Not Found
     return;
   }
 
   //found
-  res.type("text/plain").send("Biblioteca personale di " + n);
+  res.type("text/plain").send("Biblioteca personale di " + name);
 });
 
 //endpoint per aggiungere un libro
-app.put("/utenti/:name/libri/:libro", (req, res) => {
+app.put("/utenti/:name/libri/:lib", (req, res) => {
   const name = req.params.name;
-  const libro = req.params.libro;
+  const libro = req.params.lib;
 
-  if (foundUser(name) == false) {
-    res.sendStatus(404); //not found
+  if (!data.has(name)) {
+    res.sendStatus(404); //Not Found
     return;
   }
-  
+  /*
   if(verifyToken(req) != 0){
     res.send('Cookie Session Error');
     return;
-  }
-
-  //aggiungo il libro
-  //for (let i = 1; i < newId; i++) {
-  //let utente = data.get(i);
-
+  }*/
+  
+  //aggiungo il libro    
   if (data.has(name)) {
-    data.libri.push(libro);
-    //}
+    if(data.libri == undefined){
+      data.libri = [];
+    }
+    data.libri.push(libro.toString());  //NB riga 60 data.libri == undefined?
+    res.sendStatus(200);
   }
 
-  res.sendStatus(200);
   console.log("Aggiunto libro: " + libro + " a utente: " + name);
 });
 
@@ -340,88 +306,54 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
   const name = req.params.name;
   const libro = req.params.lib;
 
-  if (foundUser(name) == false) {
+  if (!data.has(name)) {
     res.sendStatus(404); //not found
     return;
   }
-  
+  /*
   if(verifyToken(req) != 0){
     res.send('Cookie Session Error');
     return;
-  }
+  }*/
 
   //trovo l'utente
-  //for (let i = 1; i < newId; i++) {
-  //let utente = data.get(i);
-
   if (data.has(name)) {
     //rimuovo il libro dell'utente
-
-    //CHIEDERE PROF PERCHé NON FA COL FOR
-
-    /*for(let j=0; j<utente.libri.lenght; j++){
-        if(utente.libri[j] == libro)
-          delete utente.libri[j];
-      }
-      data.libri.forEach(function(item, index, array) {
-        console.log(item, index);
-        if (utente.libri[index] == libro) delete utente.libri[index];
-      });*/
-
     for (var [key, val] of data) {
-      //console.log(key + ": " + val);
       val.forEach(function(item, index, array) {
-        console.log(item, index);
         if (val[index] == libro) delete val[index];
       });
     }
-    //}
   }
 
-  res.sendStatus(200);
+  res.sendStatus(200);  //OK
   console.log("Rimosso il libro: " + libro + " a utente: " + name);
 });
 
 //BUG?
 //UPDATE - post
-app.post("utenti/:name/libri/rename/:old/:new", (req, res) => {
+app.post("/utenti/:name/libri/rename/:old/:new", (req, res) => {
   let name = req.params.name;
   let oldB = req.params.old;
   let newB = req.params.new;
   let found = false;
 
-  if (!foundUser(name)) {
+  if (!data.has(name)) {
     console.log("User " + name + " not found");
-    res.sendStatus(404); //not found
+    res.sendStatus(404); //Not Found
     return;
   }
-  
+  /*
   if(verifyToken(req) != 0){
     res.send('Cookie Session Error');
     return;
-  }
-
-  /*
-  for (let i = 1; i < newId; i++) {
-    let utente = data.get(i);
-
-    if (data.has(name)) {
-      utente.libri.forEach(function(item, index, array) {
-        if (utente.libri[index] == oldB.toString()) {
-          //delete utente.libri[index];
-          utente.libri.push(newB.toString());
-          found = true;
-        }
-      });
-    }
   }*/
 
   for (var [key, val] of data) {
-    //console.log(key + ": " + val);
     val.forEach(function(item, index, array) {
       console.log(item, index);
-      if (val[index] == oldB.toString()) {
-        val.push(newB.toString());
+      if (val[index] == oldB) {
+        val.push(newB);
         found = true;
       }
     });
@@ -434,40 +366,31 @@ app.post("utenti/:name/libri/rename/:old/:new", (req, res) => {
   }
 });
 
+//DEBUG riga join
 //endpoint per ottenere la lista dei libri
 app.get("/utenti/:name/libri", (req, res) => {
   let name = req.params.name;
 
-  if (!foundUser(name)) {
+  if (!data.has(name)) {
     console.log("User " + name + " not found");
     res.sendStatus(404); //not found
     return;
   }
-  
+  /*
   if(verifyToken(req) != 0){
     res.send('Cookie Session Error');
     return;
-  }
+  }*/
 
   //restituisco la lista dei libri
   let lista = "";
-  let utente = undefined;
-  /*
-  for (let i = 1; i < newId; i++) {
-    utente = data.get(i);
-
-    if (utente.name == name) {
-      //ottengo tutti i libri su diverse righe
-      lista = utente.libri.join("\n");
-      break; //utente è l'utente cercato
-    }
-  }*/
 
   for (var [key, val] of data) {
+    
     if (key == name) {
       //ottengo tutti i libri su diverse righe
-      lista = val.join("\n");
-      break; //utente è l'utente cercato
+      if(val != undefined) lista = val.join("\n");
+      break;  //utente unico trovato
     }
   }
 
