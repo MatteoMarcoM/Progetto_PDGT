@@ -34,39 +34,42 @@ app.put("/utenti/register/:name/:password", (req, res) => {
   // verifico che non ci siano spazi
   // search restituisce -1 se non trova occorrenze
   if (name.search(" ") != -1 || pass.search(" ") != -1) {
-    res.sendStatus(403); //forbidden
+    res.type("text/plain").send("Username or password not valid");
+    res.sendStatus(403); //Forbidden
     return;
   }
 
   //verifico se il nome è già utilizzato
   if (data.has(name)) {
+    res
+      .type("text/plain")
+      .send("Username: " + name + " is invalid because is already used");
     res.sendStatus(403); //Forbidden
     return;
   }
 
   //aggiungo nuovo utente senza libri
   const salt = generateSalt(6);
-  console.log('Salt di '+name+' : '+salt);
-  
-  let hashPass = sha256.create();
-  hashPass.update(salt+pass);
-  const hash = hashPass.hex();
-  console.log('Hash salt+pass di '+name+' : '+hash);
-  
-  data.set(name, { libri: [], hash: hash, salt: salt}); 
+  console.log("Salt of " + name + " : " + salt);
 
-  res.sendStatus(200);  //OK
+  let hashPass = sha256.create();
+  hashPass.update(salt + pass);
+  const hash = hashPass.hex();
+  console.log("Hash salt+pass of " + name + " : " + hash);
+
+  data.set(name, { libri: [], hash: hash, salt: salt });
+
+  res.sendStatus(200); //OK
   console.log("User successfully registered: " + name);
 });
 
-function generateSalt(n){
-  let salt = '';
-  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + 
-                   'abcdefghijklmnopqrstuvwxyz' +
-                   '0123456789';
-  for ( var i = 0; i < n; i++ ) {
-      salt += characters.charAt(Math.floor(Math.random() * characters.length));
-   }
+function generateSalt(n) {
+  let salt = "";
+  var characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "abcdefghijklmnopqrstuvwxyz" + "0123456789";
+  for (var i = 0; i < n; i++) {
+    salt += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
   return salt;
 }
 
@@ -80,17 +83,16 @@ const secret = process.env.JWT_SECRET;
 // dopo la registrazione (sign-in) ottengo il cookie di sessione (log-in)
 app.post("/utenti/login/jwt", (req, res) => {
   if (!req.headers.authorization) {
-    //Unauthorized
-    res.type('text/plain').send("Necessaria l'autenticazione con meccanismo Basic");
-    res.sendStatus(401);
+    res.type("text/plain").send("Basic authentication is required");
+    res.sendStatus(401); //Unauthorized
     return;
   }
 
   console.log("Authorization: " + req.headers.authorization);
 
   if (!req.headers.authorization.startsWith("Basic ")) {
-    res.type('text/plain').send("Necessaria l'autenticazione con meccanismo Basic");
-    res.sendStatus(401);
+    res.type("text/plain").send("Basic authentication is required");
+    res.sendStatus(401); //Unauthorized
     return;
   }
 
@@ -105,18 +107,19 @@ app.post("/utenti/login/jwt", (req, res) => {
   console.log("Username: " + username + " password: " + password);
 
   if (!data.has(username)) {
-    res.sendStatus(401);
+    res.type("text/plain").send("Username not valid");
+    res.sendStatus(401); //Unauthorized
     return;
   }
   const user = data.get(username);
-  console.log("Login come " + username + ", hash effettivo " + user.hash);
+  console.log("Login as " + username + ", real hash " + user.hash);
 
   //hashing
   let h = sha256.create();
   h.update(user.salt + password);
   const hashed = h.hex();
 
-  console.log("Hash: " + hashed + ", expected: " + user.hash);
+  console.log("Hash calculated: " + hashed + ", expected: " + user.hash);
 
   if (hashed == user.hash) {
     const claims = {
@@ -126,7 +129,7 @@ app.post("/utenti/login/jwt", (req, res) => {
     };
 
     const token = jwt.create(claims, secret);
-    token.setExpiration(new Date().getTime() + 10000);  //10 sec
+    token.setExpiration(new Date().getTime() + 10000); //10 sec
     console.log("New token: " + token.compact());
 
     res.cookie("sessionToken", token.compact());
@@ -137,11 +140,11 @@ app.post("/utenti/login/jwt", (req, res) => {
 });
 
 //verifica token
-// ritorna 0 se ha successo 
+// ritorna 0 se ha successo
 // ritorna 1 per errore 401
 // ritorna 2 per errore 403
 // ritorna 3 se fallisce la verifica
-function verifyToken(req, res){
+/*function verifyToken(req, res){
 
   let toReturn = 3;
   
@@ -207,7 +210,42 @@ app.get("/utenti/:name/secret/jwt", (req, res) => {
   
   //verifyToken(req, res);
 });  
-//fine autorizzazione
+//fine autorizzazione*/
+
+// endpoint per ottenere il segreto tramite jwt
+app.get("/utenti/:name/secret/jwt", (req, res) => {
+  const name = req.params.name;
+
+  if (!data.has(name)) {
+    res.sendStatus(404); //Not Found
+    return;
+  }
+
+  if (!req.cookies.sessionToken) {
+    res.type("text/plain").send("JWT cookie is required");
+    res.sendStatus(401); //Unauthorized
+    return;
+  }
+
+  // richiede cookie-parser (express)
+  const token = req.cookies.sessionToken;
+  console.log("Token: " + token);
+
+  jwt.verify(token, secret, function(err, verifiedToken) {
+    if (err) {
+      console.log("Error: " + err);
+      res.sendStatus(401); //Unauthorized
+    } else {
+      console.log("Token: " + verifiedToken);
+      if (verifiedToken.body.subj == req.params.name) {
+        res.type("text/plain").send("Documento segreto di " + req.params.name);
+        res.sendSatus(200); //OK
+      } else {
+        res.sendStatus(403); //Forbidden
+      }
+    }
+  });
+});
 
 //deregistra utente
 app.delete("/utenti/remove/:name", (req, res) => {
@@ -215,15 +253,15 @@ app.delete("/utenti/remove/:name", (req, res) => {
 
   if (data.has(name)) {
     data.delete(name);
+    console.log("User: " + name + " deleted!");
     res.sendStatus(200);
-  }else {
-    res.sendStatus(404);  //Not Found
+  } else {
+    res.sendStatus(404); //Not Found
   }
 });
 
 // Negoziazione della codifica
 function negoziaCodifica(stampa, req, res, subj) {
-  
   // subj (soggetto) è 'libri' o 'utenti'
   const headerAccept = req.get("Accept");
   console.log("Accept: " + headerAccept);
@@ -240,13 +278,13 @@ function negoziaCodifica(stampa, req, res, subj) {
 
     "application/json": () => {
       res.json({
-        subj:  subj,
+        subj: subj,
         content: stampa.split("\n")
       });
     },
 
     default: () => {
-      res.sendStatus(406);
+      res.sendStatus(406); //Not Acceptable
     }
   });
 }
@@ -285,29 +323,29 @@ app.put("/utenti/:name/libri/add/:lib", (req, res) => {
     res.send('Cookie Session Error');
     return;
   }*/
-  
-  //aggiungo il libro 
+
+  //aggiungo il libro
   let found = false;
   if (data.has(name)) {
     let user = data.get(name);
-    user.libri.forEach(function(item, index, array){
-      if(user.libri[index] == libro){
-         found = true; 
+    user.libri.forEach(function(item, index, array) {
+      if (user.libri[index] == libro) {
+        found = true;
       }
     });
-    
+
     //libro non trovato allora lo aggiungo
-    if(found == false){
+    if (found == false) {
       user.libri.push(libro);
       console.log("Aggiunto libro: " + libro + " a utente: " + name);
-      res.sendStatus(200);
-    }else{
-      console.log("Libro: "+libro+" gia' presente");
-      res.sendStatus(200);
+      res.sendStatus(200); //OK
+    } else {
+      console.log("Libro: " + libro + " gia' presente");
+      res.sendStatus(200); //OK
     }
-  }else{
+  } else {
     res.sendStatus(404); //Not Found
-  }  
+  }
 });
 
 //endpoint per rimuovere un libro
@@ -321,25 +359,32 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
     return;
   }*/
 
-  //trovo l'utente
+  let found = false;
   if (data.has(name)) {
     //rimuovo il libro dell'utente
     let user = data.get(name);
     user.libri.forEach(function(item, index, array) {
-        if (user.libri[index] == libro) {
-          delete user.libri[index];
-          res.sendStatus(200);  //OK
-          console.log("Rimosso il libro: " + libro + " a utente: " + name);
-        }
-      });
-  }else{
-    res.sendStatus(404); //not found
+      if (user.libri[index] == libro) {
+        delete user.libri[index];
+        found = true;
+      }
+    });
+
+    if (found == true) {
+      res.sendStatus(200); //OK
+      console.log("Rimosso il libro: " + libro + " a utente: " + name);
+    } else {
+      //libro non trovato
+      res.type("text/plain").send("Book: " + libro + " not found");
+      res.sendStatus(404); //Not Found
+    }
+  } else {
+    res.sendStatus(404); //Not Found
     return;
   }
 });
 
-//BUG?
-//UPDATE - post
+// sostituisci un libro gia' presente con un nuovo libro
 app.post("/utenti/:name/libri/rename/:old/:new", (req, res) => {
   let name = req.params.name;
   let oldB = req.params.old;
@@ -356,20 +401,21 @@ app.post("/utenti/:name/libri/rename/:old/:new", (req, res) => {
     res.send('Cookie Session Error');
     return;
   }*/
-  
+
   let user = data.get(name);
   user.libri.forEach(function(item, index, array) {
     if (user.libri[index] == oldB) {
-        delete user.libri[index];
-        user.libri.push(newB);
-        found = true;
-      }
-    });
+      delete user.libri[index];
+      found = true;
+    }
+  });
 
   if (found == true) {
-    res.sendStatus(200);
+    // solo una volta (fuori forEach)
+    user.libri.push(newB);
+    res.sendStatus(200); //OK
   } else {
-    res.sendStatus(404);
+    res.sendStatus(404); //Not Found
   }
 });
 
@@ -388,9 +434,9 @@ app.get("/utenti/:name/libri", (req, res) => {
     return;
   }*/
 
-  //restituisco la lista dei libri  
-  let lista = data.get(name).libri.join('\n');
-  
+  //restituisco la lista dei libri
+  let lista = data.get(name).libri.join("\n");
+
   negoziaCodifica(lista, req, res, "libri");
 });
 
