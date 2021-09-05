@@ -89,6 +89,7 @@ app.post("/utenti/login/jwt", (req, res) => {
   console.log("Authorization: " + req.headers.authorization);
 
   if (!req.headers.authorization.startsWith("Basic ")) {
+    res.type('text/plain').send("Necessaria l'autenticazione con meccanismo Basic");
     res.sendStatus(401);
     return;
   }
@@ -291,10 +292,7 @@ app.put("/utenti/:name/libri/:lib", (req, res) => {
   
   //aggiungo il libro    
   if (data.has(name)) {
-    if(data.libri == undefined){
-      data.libri = [];
-    }
-    data.libri.push(libro.toString());  //NB riga 60 data.libri == undefined?
+    data.get(name).libri.push(libro);
     res.sendStatus(200);
   }
 
@@ -319,11 +317,10 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
   //trovo l'utente
   if (data.has(name)) {
     //rimuovo il libro dell'utente
-    for (var [key, val] of data) {
-      val.forEach(function(item, index, array) {
-        if (val[index] == libro) delete val[index];
+    let user = data.get(name);
+    user.libri.forEach(function(item, index, array) {
+        if (user.libri[index] == libro) delete user.libri[index];
       });
-    }
   }
 
   res.sendStatus(200);  //OK
@@ -348,16 +345,15 @@ app.post("/utenti/:name/libri/rename/:old/:new", (req, res) => {
     res.send('Cookie Session Error');
     return;
   }*/
-
-  for (var [key, val] of data) {
-    val.forEach(function(item, index, array) {
-      console.log(item, index);
-      if (val[index] == oldB) {
-        val.push(newB);
+  
+  let user = data.get(name);
+  user.libri.forEach(function(item, index, array) {
+    if (user.libri[index] == oldB) {
+        delete user.libri[index];
+        user.libri.push(newB);
         found = true;
       }
     });
-  }
 
   if (found == true) {
     res.sendStatus(200);
@@ -383,16 +379,7 @@ app.get("/utenti/:name/libri", (req, res) => {
   }*/
 
   //restituisco la lista dei libri
-  let lista = "";
-
-  for (var [key, val] of data) {
-    
-    if (key == name) {
-      //ottengo tutti i libri su diverse righe
-      if(val != undefined) lista = val.join("\n");
-      break;  //utente unico trovato
-    }
-  }
+  let lista = data.get(name).libri.join("\n");
 
   negoziaCodifica(lista, req, res, "libri");
 });
