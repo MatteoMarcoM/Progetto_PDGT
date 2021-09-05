@@ -276,27 +276,38 @@ app.get("/utenti/:name", (req, res) => {
 });
 
 //endpoint per aggiungere un libro
-app.put("/utenti/:name/libri/:lib", (req, res) => {
+app.put("/utenti/:name/libri/add/:lib", (req, res) => {
   const name = req.params.name;
   const libro = req.params.lib;
 
-  if (!data.has(name)) {
-    res.sendStatus(404); //Not Found
-    return;
-  }
   /*
   if(verifyToken(req) != 0){
     res.send('Cookie Session Error');
     return;
   }*/
   
-  //aggiungo il libro    
+  //aggiungo il libro 
+  let found = false;
   if (data.has(name)) {
-    data.get(name).libri.push(libro);
-    res.sendStatus(200);
-  }
-
-  console.log("Aggiunto libro: " + libro + " a utente: " + name);
+    let user = data.get(name);
+    user.libri.forEach(function(item, index, array){
+      if(user.libri[index] == libro){
+         found = true; 
+      }
+    });
+    
+    //libro non trovato allora lo aggiungo
+    if(found == false){
+      user.libri.push(libro);
+      console.log("Aggiunto libro: " + libro + " a utente: " + name);
+      res.sendStatus(200);
+    }else{
+      console.log("Libro: "+libro+" gia' presente");
+      res.sendStatus(200);
+    }
+  }else{
+    res.sendStatus(404); //Not Found
+  }  
 });
 
 //endpoint per rimuovere un libro
@@ -304,10 +315,6 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
   const name = req.params.name;
   const libro = req.params.lib;
 
-  if (!data.has(name)) {
-    res.sendStatus(404); //not found
-    return;
-  }
   /*
   if(verifyToken(req) != 0){
     res.send('Cookie Session Error');
@@ -319,12 +326,16 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
     //rimuovo il libro dell'utente
     let user = data.get(name);
     user.libri.forEach(function(item, index, array) {
-        if (user.libri[index] == libro) delete user.libri[index];
+        if (user.libri[index] == libro) {
+          delete user.libri[index];
+          res.sendStatus(200);  //OK
+          console.log("Rimosso il libro: " + libro + " a utente: " + name);
+        }
       });
+  }else{
+    res.sendStatus(404); //not found
+    return;
   }
-
-  res.sendStatus(200);  //OK
-  console.log("Rimosso il libro: " + libro + " a utente: " + name);
 });
 
 //BUG?
@@ -362,7 +373,6 @@ app.post("/utenti/:name/libri/rename/:old/:new", (req, res) => {
   }
 });
 
-//DEBUG riga join
 //endpoint per ottenere la lista dei libri
 app.get("/utenti/:name/libri", (req, res) => {
   let name = req.params.name;
@@ -378,9 +388,9 @@ app.get("/utenti/:name/libri", (req, res) => {
     return;
   }*/
 
-  //restituisco la lista dei libri
-  let lista = data.get(name).libri.join("\n");
-
+  //restituisco la lista dei libri  
+  let lista = data.get(name).libri.join('\n');
+  
   negoziaCodifica(lista, req, res, "libri");
 });
 

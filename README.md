@@ -9,7 +9,7 @@ Created by Montanari Matteo Marco
 4. GET     /utenti/:name  
 5. GET     /utenti/:name/libri	  		
 6. PUT     /utenti/register/:name/:password			  
-7. PUT     /utenti/:name/libri/:libro			  
+7. PUT     /utenti/:name/libri/add/:libro			  
 8. POST    /utenti/login/jwt			  
 9. POST    /utenti/:name/libri/rename/:old/:new	  		
 10. DELETE  /utenti/remove/:name			  
