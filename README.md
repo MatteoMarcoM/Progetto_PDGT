@@ -60,7 +60,7 @@ Esempio che mostra il funzionamento del servizio:
 (es. PUT     /utenti/register/mario/passwordDiMario)
 3. Verificare che l'utente sia registrato tramite la richiesta n.4.  
 (es. GET     /utenti/mario)
-4. Ottenere il token/cookie di sessione relativo all'utente tramite la richiesta n.8.
+4. Ottenere il cookie di sessione relativo all'utente tramite la richiesta n.8.  
 ( es. POST    /utenti/login/jwt con header Authorization: Basic mario:passwordDiMario)
 5. Ottenere il documento segreto per verificare il funzionamento del cookie con la
 richiesta n.2.  
@@ -68,7 +68,7 @@ richiesta n.2.
 6. Inserire un libro ad un utente tramite la richiesta n.7.  
 (es. PUT     /utenti/mario/libri/add/1984)
 7. Visualizzare i libri dell'utente tramite la richiesta n.5. E' possibile utilizzare l'header 
-Accept per la negoziazione della codifica e ottenere la lista dei libri in formato JSON o HTML. 
+Accept per la negoziazione della codifica e ottenere la lista dei libri in formato JSON o HTML.  
 (es. GET     /utenti/mario/libri)
 8. Rinominare un libro di un utente tramite la richiesta n.9.  
 (es. POST    /utenti/mario/libri/rename/1984/eragon)

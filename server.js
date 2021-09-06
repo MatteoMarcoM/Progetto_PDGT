@@ -1,3 +1,4 @@
+// (c) Matteo Marco Montanari 299166 progetto PDGT
 const express = require("express");
 const app = express();
 
@@ -34,26 +35,26 @@ app.put("/utenti/register/:name/:password", (req, res) => {
   // verifico che non ci siano spazi
   // search restituisce -1 se non trova occorrenze
   if (name.search(" ") != -1 || pass.search(" ") != -1) {
-    console.log("Username or password not valid");
-    res.sendStatus(403); //Forbidden
+    res.status(403).send("Username or password not valid"); //Forbidden
     return;
   }
 
   //verifico se il nome è già utilizzato
-  if (data.has(name)) {    
-    console.log("Username: " + name + " is invalid because is already used");
-    res.sendStatus(403); //Forbidden
+  if (data.has(name)) {
+    res
+      .status(403)
+      .send("Username: " + name + " is invalid because is already used"); //Forbidden
     return;
   }
 
   //aggiungo nuovo utente senza libri
   const salt = generateSalt(6);
-  console.log("Salt of " + name + " : " + salt);
+  console.log("Salt of " + name + ": " + salt);
 
   let hashPass = sha256.create();
   hashPass.update(salt + pass);
   const hash = hashPass.hex();
-  console.log("Hash salt+pass of " + name + " : " + hash);
+  console.log("Hash salt+pass of " + name + ": " + hash);
 
   data.set(name, { libri: [], hash: hash, salt: salt });
 
@@ -81,14 +82,14 @@ const secret = process.env.JWT_SECRET;
 // dopo la registrazione (sign-in) ottengo il cookie di sessione (log-in)
 app.post("/utenti/login/jwt", (req, res) => {
   if (!req.headers.authorization) {
-    res.sendStatus(401); //Unauthorized
+    res.status(401).send("Basic authentication is required"); //Unauthorized;
     return;
   }
 
   console.log("Authorization: " + req.headers.authorization);
 
   if (!req.headers.authorization.startsWith("Basic ")) {
-    res.sendStatus(401); //Unauthorized
+    res.status(401).send("Basic authentication is required"); //Unauthorized;
     return;
   }
 
@@ -103,9 +104,10 @@ app.post("/utenti/login/jwt", (req, res) => {
   console.log("Username: " + username + " password: " + password);
 
   if (!data.has(username)) {
-    res.sendStatus(401); //Unauthorized
+    res.sendStatus(404).send("Username not found"); //Not Found
     return;
   }
+
   const user = data.get(username);
   console.log("Login as " + username + ", real hash " + user.hash);
 
@@ -128,13 +130,13 @@ app.post("/utenti/login/jwt", (req, res) => {
     console.log("New token: " + token.compact());
 
     res.cookie("sessionToken", token.compact());
-    res.sendStatus(200);
+    res.sendStatus(200); //OK
   } else {
-    res.sendStatus(401);
+    res.sendStatus(401); //Unauthorized
   }
 });
 
-//verifica token
+// verifica token
 // ritorna true se ha successo
 function verifyToken(req, res) {
   if (!req.cookies.sessionToken) {
@@ -176,7 +178,10 @@ app.get("/utenti/:name/secret/jwt", (req, res) => {
   }
 
   if (verifyToken(req, res)) {
-    res.type("text/plain").send("Documento segreto di " + name);
+    res
+      .status(200)
+      .type("text/plain")
+      .send("Documento segreto di " + name); //OK
     return;
   }
 });
@@ -184,12 +189,13 @@ app.get("/utenti/:name/secret/jwt", (req, res) => {
 //deregistra utente
 app.delete("/utenti/remove/:name", (req, res) => {
   const name = req.params.name;
-  
+
   if (data.has(name)) {
     if (!verifyToken(req, res)) return;
+
     data.delete(name);
     console.log("User: " + name + " deleted!");
-    res.sendStatus(200);
+    res.sendStatus(200); //OK
   } else {
     res.sendStatus(404); //Not Found
   }
@@ -235,7 +241,7 @@ app.get("/utenti", (req, res) => {
   negoziaCodifica(lista, req, res, "utenti");
 });
 
-//accedi all'endpoint degli utenti
+//accedi all'endpoint dell'utente
 app.get("/utenti/:name", (req, res) => {
   const name = req.params.name;
 
@@ -302,10 +308,10 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
       console.log("Rimosso il libro: " + libro + " a utente: " + name);
     } else {
       //libro non trovato
-      res.sendStatus(404); //Not Found
+      res.status(404).send("Book: " + libro + " not found"); //Not Found
     }
   } else {
-    res.sendStatus(404); //Not Found
+    res.status(404).send("User: " + name + " not found"); //Not Found
     return;
   }
 });
