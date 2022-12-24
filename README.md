@@ -50,7 +50,7 @@ NOTA BENE: Non è possibile effettuare le operazioni di cui ai punti nn. 2, 5, 7
 se non si possiede il JWT valido dell'utente in questione (ottenibile come al punto n.8).
 
 ## Messa online del servizio
-Il servizio è stato sviluppato e risiede come servizio pubblico su glitch.com
+Il servizio è stato sviluppato e risiede come servizio pubblico su glitch.me all'URL: https://fuchsia-outstanding-plow.glitch.me
 
 ## Esempio di utilizzo del servizio
 Esempio che mostra il funzionamento del servizio: 
