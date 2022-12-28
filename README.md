@@ -85,4 +85,7 @@ la richiesta n.3.
 NOTA BENE: Dopo aver ottenuto il JWT esso ha una scadenza di 60 secondi dopodiché 
 è necessario ottenerne un altro tramite la richiesta n.8.
 
-##### Termine della relazione
+## Note finali
+Aggiunta dello script per gestire le politiche CORS (cross-origin resource sharing) ripreso da https://stackoverflow.com/questions/65630743/how-to-solve-flutter-web-api-cors-error-only-with-dart-code/66879350#66879350 per risolvere errori di connessione all'API del servizio per applicazione flutter scritta in dart. 
+
+### Termine della relazione
