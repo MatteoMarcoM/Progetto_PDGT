@@ -7,12 +7,26 @@ const app = express();
 const cookieparser = require("cookie-parser"); //middleware Express
 app.use(cookieparser());
 
+// ****************************
+// per accedere alla API dall'esterno (CORS policy)
+// https://stackoverflow.com/questions/65630743/how-to-solve-flutter-web-api-cors-error-only-with-dart-code/66879350#66879350
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,PUT,PATCH,POST,DELETE");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  next();
+});
+// ****************************
+
 //mappa javascript (nome, {dizionario chiave valore})
 let data = new Map();
 data.set("Mario", {
   libri: ["libro1", "libro2"],
   hash: "sdkjl4n09nc0v35obv7be9t8t",
-  salt: "123456"
+  salt: "123456",
 });
 
 //reset mappa
@@ -122,7 +136,7 @@ app.post("/utenti/login/jwt", (req, res) => {
     const claims = {
       subj: username,
       group: "biblioteca",
-      libri: user.libri
+      libri: user.libri,
     };
 
     const token = jwt.create(claims, secret);
@@ -220,13 +234,13 @@ function negoziaCodifica(stampa, req, res, subj) {
     "application/json": () => {
       res.json({
         subj: subj,
-        content: stampa.split("\n")
+        content: stampa.split("\n"),
       });
     },
 
     default: () => {
       res.sendStatus(406); //Not Acceptable
-    }
+    },
   });
 }
 
@@ -265,7 +279,7 @@ app.put("/utenti/:name/libri/add/:lib", (req, res) => {
   let found = false;
   if (data.has(name)) {
     let user = data.get(name);
-    user.libri.forEach(function(item, index, array) {
+    user.libri.forEach(function (item, index, array) {
       if (user.libri[index] == libro) {
         found = true;
       }
@@ -296,7 +310,7 @@ app.delete("/utenti/:name/libri/remove/:lib", (req, res) => {
   if (data.has(name)) {
     //rimuovo il libro dell'utente
     let user = data.get(name);
-    user.libri.forEach(function(item, index, array) {
+    user.libri.forEach(function (item, index, array) {
       if (user.libri[index] == libro) {
         delete user.libri[index];
         found = true;
@@ -331,7 +345,7 @@ app.post("/utenti/:name/libri/rename/:old/:new", (req, res) => {
   if (!verifyToken(req, res)) return;
 
   let user = data.get(name);
-  user.libri.forEach(function(item, index, array) {
+  user.libri.forEach(function (item, index, array) {
     if (user.libri[index] == oldB) {
       delete user.libri[index];
       found = true;
