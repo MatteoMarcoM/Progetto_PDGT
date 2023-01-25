@@ -1,6 +1,11 @@
 // (c) Matteo Marco Montanari 299166 progetto PDGT
-const express = require("express");
-const app = express();
+var express = require("express");
+// CORS
+var cors = require('cors');
+var app = express();
+
+app.use(cors());
+console.log('CORS enabled for all ports!');
 
 // per leggere i cookie nell'endpoint 'verifica cookie sessione'
 // req.cookies.<nomeDelCookie>
@@ -10,15 +15,18 @@ app.use(cookieparser());
 // ****************************
 // per accedere alla API dall'esterno (CORS policy)
 // https://stackoverflow.com/questions/65630743/how-to-solve-flutter-web-api-cors-error-only-with-dart-code/66879350#66879350
+// https://stackoverflow.com/questions/64241766/how-to-get-a-cookie-in-flutter-web-from-header/65039765#65039765
 app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Credentials", true);
+  res.header("Access-Control-Allow-Origin", "http://localhost:5555");
   res.header("Access-Control-Allow-Methods", "GET,PUT,PATCH,POST,DELETE");
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
+    "Origin, X-Requested-With, Content-Type, Accept, Set-Cookie, Cookie"
   );
   next();
 });
+
 // ****************************
 
 //mappa javascript (nome, {dizionario chiave valore})
